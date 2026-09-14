@@ -3,179 +3,1076 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Penjaga Dunia Digital — WebAR Edukasi</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <title>Cyber Defense AR</title>
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --safe: #00ff88;
+      --danger: #ff2a5f;
+      --recover: #00f3ff;
+      --hacker-accent: #39ff14;
+      --admin-accent: #00f3ff;
+      --luxury-gold: #f39c12;
+      --bg-glass: rgba(8, 14, 22, 0.82);
+      --border-glow: 0 0 20px rgba(0, 243, 255, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #000;
+      overflow: hidden;
+    }
+
+    body.mode-dark { background: #000; }
+    body.mode-transparent { background: transparent; }
+
+    a-scene {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    canvas.a-canvas { background: transparent !important; }
+    video { object-fit: cover !important; }
+
+    #ui-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* Bingkai Panduan Scanning */
+    #scanner-guide {
+      position: absolute;
+      top: 44%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 2px dashed rgba(0, 243, 255, 0.5);
+      border-radius: 20px;
+      display: none;
+      pointer-events: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      letter-spacing: 1px;
+      background: rgba(0, 243, 255, 0.04);
+      box-shadow: inset 0 0 30px rgba(0, 243, 255, 0.1);
+      animation: scan-pulse 2.5s infinite ease-in-out;
+    }
+
+    @keyframes scan-pulse {
+      0%, 100% { border-color: rgba(0, 243, 255, 0.3); transform: translate(-50%, -50%) scale(1); }
+      50% { border-color: var(--admin-accent); transform: translate(-50%, -50%) scale(1.02); box-shadow: inset 0 0 40px rgba(0, 243, 255, 0.25); }
+    }
+
+    /* Kontrol Mode Tampilan + Fullscreen (kiri atas) */
+    #mode-controls {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      left: 16px;
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .control-btn {
+      min-width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.8);
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      padding: 0 12px;
+      cursor: pointer;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transition: all 0.25s ease;
+    }
+    .control-btn:hover { color: #fff; border-color: rgba(0, 243, 255, 0.4); }
+    .control-btn.active { color: var(--admin-accent); border-color: rgba(0, 243, 255, 0.5); background: rgba(0, 243, 255, 0.12); }
+
+    #fullscreen-btn { width: 34px; padding: 0; font-size: 15px; line-height: 1; }
+
+    /* Mode Fullscreen: sembunyikan semua HUD, sisakan hanya Arena Adu Cepat (Hacker vs Admin) */
+    body.is-fullscreen #mode-toggle-btn,
+    body.is-fullscreen #role-badge,
+    body.is-fullscreen #btn-achievements,
+    body.is-fullscreen #status-banner,
+    body.is-fullscreen #cyber-intel-panel,
+    body.is-fullscreen #scanner-guide,
+    body.is-fullscreen #no-role-msg,
+    body.is-fullscreen #btn-start-camera {
+      display: none !important;
+    }
+
+    /* Badge Peran */
+    #role-badge {
+      position: absolute;
+      top: max(58px, calc(env(safe-area-inset-top) + 46px));
+      left: 16px;
+      padding: 8px 16px;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      color: #fff;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-left: 4px solid #888;
+      border-radius: 6px;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    #role-badge.role-hacker { border-left-color: var(--hacker-accent); color: var(--hacker-accent); text-shadow: 0 0 10px rgba(57,255,20,0.4); }
+    #role-badge.role-admin  { border-left-color: var(--admin-accent);  color: var(--admin-accent); text-shadow: 0 0 10px rgba(0,243,255,0.4); }
+
+    /* Tombol Gelar */
+    #btn-achievements {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      right: 16px;
+      padding: 8px 14px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(243, 156, 18, 0.4);
+      color: var(--luxury-gold);
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    #btn-achievements:hover {
+      background: rgba(243, 156, 18, 0.15);
+      border-color: var(--luxury-gold);
+      box-shadow: 0 0 15px rgba(243, 156, 18, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Status Banner */
+    #status-banner {
+      position: absolute;
+      top: max(110px, calc(env(safe-area-inset-top) + 98px));
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      width: fit-content;
+      max-width: 90%;
+      padding: 8px 20px;
+      text-align: center;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 3px solid var(--safe);
+      border-radius: 6px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    #status-banner::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: var(--safe);
+    }
+    #status-banner.status-danger { border-bottom-color: var(--danger); animation: banner-pulse 0.9s infinite; }
+    #status-banner.status-danger::before { background: var(--danger); }
+    #status-banner.status-recover { border-bottom-color: var(--recover); }
+    #status-banner.status-recover::before { background: var(--recover); }
+
+    @keyframes banner-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.98); } }
+
+    /* Panel Cyber-Intel HUD */
+    #cyber-intel-panel {
+      position: absolute;
+      bottom: 95px;
+      left: 16px;
+      right: 16px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 243, 255, 0.25);
+      border-radius: 14px;
+      padding: 16px;
+      color: #fff;
+      font-family: "Courier New", monospace;
+      pointer-events: auto;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), var(--border-glow);
+      transition: all 0.4s ease;
+    }
+    #cyber-intel-panel.alert-mode {
+      border-color: rgba(255, 42, 95, 0.6);
+      background: rgba(22, 8, 12, 0.9);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 42, 95, 0.3);
+    }
+    .intel-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--admin-accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; }
+    #cyber-intel-panel.alert-mode .intel-header { color: var(--danger); }
+    .intel-title { font-size: 14px; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; }
+    .intel-desc { font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.85); margin: 0; }
+
+    /* Tombol Aksi Utama */
+    .action-btn {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      padding: 15px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: system-ui, sans-serif;
+      color: #04090e;
+      border: none;
+      border-radius: 10px;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+    }
+    .action-btn:active { transform: scale(0.97); }
+    .btn-hacker { background: linear-gradient(135deg, #39ff14, #2ecc71); box-shadow: 0 8px 25px rgba(57,255,20,0.3); }
+    .btn-admin { background: linear-gradient(135deg, #00f3ff, #2980b9); color: #fff; box-shadow: 0 8px 25px rgba(0,243,255,0.3); }
+
+    #btn-start-camera {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 99;
+      padding: 14px 26px;
+      font-size: 14px; font-weight: bold;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #00ff88, #00b894);
+      color: #040d12;
+      border: none; border-radius: 10px; cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 10px 30px rgba(0,255,136,0.4);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    #btn-start-camera:hover { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 15px 35px rgba(0,255,136,0.6); }
+
+    /* ---------- MODAL ---------- */
+    .game-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 12, 0.88);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      pointer-events: auto;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-content {
+      background: linear-gradient(145deg, rgba(13, 20, 30, 0.95), rgba(6, 10, 16, 0.98));
+      border: 1px solid rgba(0, 243, 255, 0.4);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      color: #fff;
+      font-family: "Courier New", monospace;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 243, 255, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-content::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--admin-accent), transparent);
+    }
+
+    .modal-content.hacker-theme {
+      border-color: rgba(57, 255, 20, 0.5);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(57, 255, 20, 0.15);
+    }
+    .modal-content.hacker-theme::before {
+      background: linear-gradient(90deg, transparent, var(--hacker-accent), transparent);
+    }
+
+    .modal-content h3 { margin-top: 0; font-size: 17px; color: var(--admin-accent); letter-spacing: 0.5px; }
+    .modal-content.hacker-theme h3 { color: var(--hacker-accent); text-shadow: 0 0 10px rgba(57,255,20,0.3); }
+
+    .code-box {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      font-size: 22px;
+      letter-spacing: 6px;
+      color: var(--luxury-gold);
+      margin: 16px 0;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 14px 16px;
+      margin-top: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: "Courier New", monospace;
+      font-size: 12.5px;
+      font-weight: 600;
+      text-align: left;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-btn::after {
+      content: '→';
+      position: absolute;
+      right: 16px;
+      opacity: 0.3;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .modal-btn:hover {
+      background: rgba(0, 243, 255, 0.08);
+      border-color: var(--admin-accent);
+      color: #fff;
+      padding-left: 20px;
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+    }
+    .modal-btn:hover::after {
+      opacity: 1;
+      transform: translateX(4px);
+    }
+
+    .modal-content.hacker-theme .modal-btn:hover {
+      background: rgba(57, 255, 20, 0.08);
+      border-color: var(--hacker-accent);
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
+    }
+
+    /* Toast Achievement */
+    #achievement-toast {
+      position: fixed;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(145deg, #182232, #0a0f18);
+      border: 1px solid rgba(243, 156, 18, 0.6);
+      color: #fff;
+      padding: 14px 24px;
+      border-radius: 12px;
+      z-index: 200;
+      font-family: "Courier New", monospace;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.7), 0 0 25px rgba(243, 156, 18, 0.25);
+      transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      text-align: center;
+    }
+    #achievement-toast.show { top: 24px; }
+    #achievement-toast span { color: var(--luxury-gold); display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; margin-bottom: 2px; }
+
+    #no-role-msg {
+      position: absolute;
+      left: 16px; right: 16px; bottom: 24px;
+      padding: 16px; font-size: 13px; color: #fff;
+      background: var(--bg-glass); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-left: 4px solid #f39c12;
+      border-radius: 8px;
+      pointer-events: auto;
+    }
+
+    /* ---------- ARENA ADU CEPAT (RACE MODE) ---------- */
+    #race-panel {
+      position: absolute;
+      top: max(150px, calc(env(safe-area-inset-top) + 138px));
+      left: 16px;
+      right: 16px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(243, 156, 18, 0.35);
+      border-radius: 12px;
+      padding: 12px 16px;
+      pointer-events: auto;
+      font-family: "Courier New", monospace;
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      transition: all 0.3s ease;
+    }
+    #race-panel.race-active {
+      border-color: rgba(0, 243, 255, 0.6);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(0, 243, 255, 0.25);
+    }
+    #race-panel.race-finished {
+      border-color: rgba(243, 156, 18, 0.7);
+    }
+    .race-panel-header {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: var(--luxury-gold);
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    #race-status-text {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 10px;
+    }
+    #race-status-text.race-status-live {
+      color: var(--admin-accent);
+      font-weight: bold;
+    }
+    #race-status-text.race-status-win {
+      color: var(--safe);
+      font-weight: bold;
+    }
+    #race-status-text.race-status-lose {
+      color: var(--danger);
+      font-weight: bold;
+    }
+    .race-btn {
+      width: 100%;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #f39c12, #d68910);
+      color: #04090e;
+      border: none;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 6px 18px rgba(243,156,18,0.3);
+    }
+    .race-btn:active { transform: scale(0.97); }
+    .race-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .modal-content.win-theme {
+      border-color: rgba(0, 255, 136, 0.6);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 136, 0.2);
+    }
+    .modal-content.win-theme::before {
+      background: linear-gradient(90deg, transparent, var(--safe), transparent);
+    }
+    .modal-content.win-theme h3 { color: var(--safe); }
+
+    .modal-content.lose-theme {
+      border-color: rgba(255, 42, 95, 0.6);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 42, 95, 0.2);
+    }
+    .modal-content.lose-theme::before {
+      background: linear-gradient(90deg, transparent, var(--danger), transparent);
+    }
+    .modal-content.lose-theme h3 { color: var(--danger); }
+
+    .race-timer-big {
+      text-align: center;
+      font-size: 26px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin: 14px 0;
+      color: var(--luxury-gold);
+    }
+  </style>
 </head>
-<body>
+<body class="mode-dark">
 
-  <!-- ============================================================
-       ZONA ATAS — Chip status kecil, di tengah, tidak menutupi kamera
-       ============================================================ -->
-  <div id="status-chip" class="status-chip status-safe" role="status" aria-live="polite">
-    <span id="status-chip-icon">🛡️</span>
-    <span id="status-chip-text">Sistem Aman</span>
+  <!-- Toast Notifikasi Achievement -->
+  <div id="achievement-toast">
+    <span>Achievement Unlocked</span>
+    <strong id="toast-title-name" style="font-size: 14px; letter-spacing: 0.5px;">Gelar Baru Didapat</strong>
   </div>
 
-  <!-- Lencana progres misi kecil, pojok kiri atas -->
-  <div id="mission-badge" class="mission-badge">
-    <span id="mission-badge-icon">🧭</span>
-    <span id="mission-badge-text">Misi 1 dari 4</span>
+  <!-- Modal Minigame Hacking / Patching -->
+  <div id="minigame-modal" class="game-modal">
+    <div class="modal-content" id="minigame-theme-box">
+      <h3 id="mg-title">Terminal Bypass</h3>
+      <p id="mg-desc" style="font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.4;">Pecahkan sandi enkripsi untuk melanjutkan perintah taktis!</p>
+      <div class="code-box" id="mg-target-code">---</div>
+      <div id="mg-options"></div>
+    </div>
   </div>
 
-  <!-- ============================================================
-       ZONA BAWAH — 1 tombol CTA besar + 1 ikon info kecil
-       ============================================================ -->
-  <div id="zone-bottom" class="zone-bottom">
-    <button id="btn-info" class="btn-info" aria-label="Info tambahan" onclick="window.PenjagaApp.openInfoSheet()">ℹ️</button>
-    <button id="btn-cta" class="btn-cta" onclick="window.PenjagaApp.handleCtaTap()">
-      <span id="btn-cta-icon">📷</span>
-      <span id="btn-cta-text">Mulai Petualangan</span>
+  <!-- Modal Choice-Driven Dilemma -->
+  <div id="dilemma-modal" class="game-modal">
+    <div class="modal-content hacker-theme">
+      <h3>Insiden Darurat Siber</h3>
+      <p id="dilemma-text" style="font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.85); margin-bottom: 16px;">
+        Karyawan menerima lampiran file <code>.exe</code> mencurigakan dari email tak dikenal. Tindakan taktis Anda?
+      </p>
+      <button class="modal-btn" onclick="handleDilemmaChoice(false)">A. Langsung Buka File untuk Memeriksa Isinya</button>
+      <button class="modal-btn" onclick="handleDilemmaChoice(true)">B. Cek Ekstensi File & Laporkan ke Tim IT Security</button>
+    </div>
+  </div>
+
+  <!-- Modal Hall of Titles / Achievement -->
+  <div id="achievement-modal" class="game-modal">
+    <div class="modal-content" style="border-color: rgba(243, 156, 18, 0.5);">
+      <h3 style="color: var(--luxury-gold);">Hall of Cyber Titles</h3>
+      <p style="font-size: 11.5px; color: rgba(255,255,255,0.6); margin-bottom: 16px;">Gelar prestisius yang Anda raih dari pengalaman literasi siber:</p>
+      <div id="achievement-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px; font-size: 12px;"></div>
+      <button class="modal-btn" style="text-align: center; justify-content: center; background: rgba(243, 156, 18, 0.15); border-color: var(--luxury-gold); color: var(--luxury-gold);" onclick="closeAchievementModal()">Tutup Jendela</button>
+    </div>
+  </div>
+
+  <!-- Modal Hasil Adu Cepat (Menang / Kalah) -->
+  <div id="race-result-modal" class="game-modal">
+    <div class="modal-content" id="race-result-box">
+      <h3 id="race-result-title">Hasil Duel</h3>
+      <p id="race-result-desc" style="font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.8);">—</p>
+      <div class="race-timer-big" id="race-result-time">00.00s</div>
+      <button class="modal-btn" style="text-align:center; justify-content:center;" onclick="closeRaceResultModal()">Tutup</button>
+      <button class="modal-btn" style="text-align:center; justify-content:center; margin-top:8px;" onclick="startRace()">Main Lagi (Adu Cepat)</button>
+    </div>
+  </div>
+
+  <!-- UI Overlay Utama -->
+  <div id="ui-overlay">
+
+    <!-- Kontrol Mode Tampilan + Fullscreen -->
+    <div id="mode-controls">
+      <button id="mode-toggle-btn" class="control-btn" onclick="toggleDisplayMode()" title="Ganti mode tampilan">Gelap</button>
+      <button id="fullscreen-btn" class="control-btn" onclick="toggleFullscreen()" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+    </div>
+
+    <div id="role-badge">Memuat peran...</div>
+    <button id="btn-achievements" onclick="openAchievementModal()">Gelar Saya</button>
+    <div id="status-banner" class="status-safe">Server Aman</div>
+
+    <!-- Kotak Panduan Pemindai -->
+    <div id="scanner-guide">Arahkan Kamera ke Target Marker</div>
+
+    <!-- Panel Adu Cepat (Race Mode: Hacker vs Admin) -->
+    <div id="race-panel">
+      <div class="race-panel-header">Arena Adu Cepat</div>
+      <div id="race-status-text">Tantang lawan Anda! Tekan tombol untuk memulai duel taktis adu cepat & adu ketepatan.</div>
+      <button id="btn-start-race" class="race-btn" onclick="startRace()">Mulai Adu Cepat</button>
+    </div>
+
+    <div id="cyber-intel-panel">
+      <div class="intel-header">
+        <span>System Intel Feed</span>
+        <span id="intel-status-tag">SECURE</span>
+      </div>
+      <div id="intel-title" class="intel-title">Infrastruktur Stabil</div>
+      <p id="intel-desc" class="intel-desc">Sistem pengamanan aktif. Gunakan literasi siber untuk menjaga keamanan aset digital.</p>
+    </div>
+
+    <button id="btn-start-camera">Mulai Kamera</button>
+
+    <button id="btn-hacker" class="action-btn btn-hacker" style="display:none;" onclick="triggerHackerMinigame()">
+      Luncurkan Serangan (Hacking Minigame)
     </button>
-  </div>
 
-  <!-- Panduan pemindaian, muncul hanya sebelum kamera aktif -->
-  <div id="scan-guide" class="scan-guide" style="display:none;">
-    <div class="scan-guide-frame"></div>
-    <p class="scan-guide-text">Arahkan kamera ke kartu penanda ✨</p>
-  </div>
+    <button id="btn-admin" class="action-btn btn-admin" style="display:none;" onclick="triggerAdminMinigame()">
+      Aktifkan Firewall (Patching Minigame)
+    </button>
 
-  <!-- Pesan jika belum memilih peran/karakter -->
-  <div id="no-role-msg" class="no-role-msg" style="display:none;">
-    Pilih maskotmu dulu, yuk! Tambahkan <code>?peran=guardian</code> di alamat halaman.
-  </div>
-
-  <!-- ============================================================
-       LEMBAR INFO (L3) — bottom sheet ringan, dipanggil dari ikon ℹ️
-       ============================================================ -->
-  <div id="info-sheet" class="sheet-overlay" onclick="window.PenjagaApp.closeInfoSheet(event)">
-    <div class="sheet-card" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-icon" id="info-sheet-icon">💡</div>
-      <p id="info-sheet-text" class="sheet-text">Teks penjelasan akan muncul di sini.</p>
-      <button class="btn-sheet-close" onclick="window.PenjagaApp.closeInfoSheet(event)">Mengerti!</button>
+    <div id="no-role-msg" style="display:none;">
+      Peran belum ditentukan. Tambahkan <code>?role=hacker</code> atau <code>?role=admin</code> di URL.
     </div>
   </div>
 
-  <!-- ============================================================
-       LEMBAR PILIHAN AKSI (L1+L2) — muncul saat hotspot AR disentuh
-       ============================================================ -->
-  <div id="action-sheet" class="sheet-overlay">
-    <div class="sheet-card" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-icon" id="action-sheet-icon">✨</div>
-      <p id="action-sheet-l1" class="sheet-title">Ada sesuatu yang menarik!</p>
-      <div id="action-sheet-buttons" class="sheet-buttons"></div>
-    </div>
-  </div>
-
-  <!-- ============================================================
-       LEMBAR SANDI AJAIB (Misi 3) — urutkan 3 gembok warna
-       ============================================================ -->
-  <div id="lock-sheet" class="sheet-overlay">
-    <div class="sheet-card" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-icon">🔐</div>
-      <p class="sheet-title">Rangkai Kunci Ajaib</p>
-      <p class="sheet-sub">Ketuk 3 gembok sesuai urutan warna yang benar!</p>
-      <div id="lock-targets" class="lock-targets"></div>
-      <div id="lock-options" class="lock-options"></div>
-    </div>
-  </div>
-
-  <!-- ============================================================
-       TOAST LENCANA (Achievement) — muncul singkat di zona atas
-       ============================================================ -->
-  <div id="badge-toast" class="badge-toast">
-    <span class="badge-toast-label">Lencana Baru!</span>
-    <strong id="badge-toast-name">Penjaga Jejak Bersih</strong>
-  </div>
-
-  <!-- ============================================================
-       PAPAN PERINGKAT PENJAGA
-       ============================================================ -->
-  <div id="leaderboard-sheet" class="sheet-overlay">
-    <div class="sheet-card" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-icon">🏆</div>
-      <p class="sheet-title">Papan Peringkat Penjaga</p>
-      <div id="leaderboard-list" class="leaderboard-list"></div>
-      <button class="btn-sheet-close" onclick="window.PenjagaApp.closeLeaderboard()">Tutup</button>
-    </div>
-  </div>
-
-  <!-- ============================================================
-       ZONA TENGAH — A-Frame / MindAR (100% bersih dari panel HTML)
-       ============================================================ -->
+  <!-- A-Frame Scene -->
   <a-scene
-    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no; uiLoading: no;"
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no; uiLoading: yes;"
     color-space="sRGB"
     renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
   >
-    <a-assets>
-      <!-- Placeholder aset low-poly: geometri dasar A-Frame, tanpa file model eksternal
-           agar ringan di memori ponsel. Ganti src pada a-entity gltf-model jika sudah
-           punya aset .glb low-poly (disarankan < 2MB, < 5k triangle). -->
-    </a-assets>
-
-    <a-camera position="0 0 0" look-controls="enabled: false">
-      <!-- Cursor non-fuse: mengubah ketukan layar (touch/klik) menjadi event 'click'
-           pada entitas ber-class .clickable, tanpa perlu tatap lama (fuse). -->
-      <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable; far: 10"></a-entity>
-    </a-camera>
-
-    <a-entity mindar-image-target="targetIndex: 0" id="mission-anchor">
-
-      <!-- Maskot Penjaga: placeholder low-poly (kapsul + bola = karakter sederhana) -->
-      <a-entity id="mascot" position="0 0 0">
-        <a-sphere
-          id="mascot-body"
-          radius="0.18"
-          position="0 0.2 0"
-          material="shader: standard; color: #4C9EEB; metalness: 0.1; roughness: 0.6"
-        ></a-sphere>
-        <a-cone
-          id="mascot-hat"
-          radius-bottom="0.1" radius-top="0" height="0.12"
-          position="0 0.38 0"
-          material="shader: standard; color: #FFC94A; metalness: 0.1; roughness: 0.5"
-        ></a-cone>
-      </a-entity>
-
-      <!-- Hotspot interaktif berdenyut lembut — target raycaster/klik untuk tiap misi -->
-      <a-entity
-        id="hotspot"
-        class="clickable"
-        geometry="primitive: circle; radius: 0.14"
-        material="shader: flat; color: #FFC94A; opacity: 0.85; transparent: true; side: double"
-        position="0 -0.02 0.01"
-        rotation="0 0 0"
-        animation__pulse="property: scale; dir: alternate; dur: 900; loop: true; to: 1.18 1.18 1.18; easing: easeInOutSine"
-        animation__fade="property: material.opacity; dir: alternate; dur: 900; loop: true; to: 0.4; easing: easeInOutSine"
-      ></a-entity>
-
-      <!-- Teks status singkat mengambang di atas maskot (bukan panel HTML) -->
+    <a-assets></a-assets>
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-cylinder
+        id="server-object"
+        position="0 0.2 0"
+        radius="0.25"
+        height="0.4"
+        material="shader: standard; color: #00ff88; metalness: 0.3; roughness: 0.4"
+      ></a-cylinder>
       <a-text
-        id="mascot-label"
-        value="Ketuk aku!"
+        id="health-text"
+        value="Server Health: 100"
         align="center"
-        position="0 0.6 0"
-        width="1.4"
-        color="#F7F9FC"
+        position="0 0.62 0"
+        width="1.6"
+        color="#ffffff"
       ></a-text>
-
     </a-entity>
   </a-scene>
 
-  <script type="module" src="script.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update, runTransaction } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDMZj3Tzbv-he66Obz876r78v40Xwgt8_A",
+      authDomain: "cyberdefense-ar.firebaseapp.com",
+      databaseURL: "https://cyberdefense-ar-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cyberdefense-ar",
+      storageBucket: "cyberdefense-ar.firebasestorage.app",
+      messagingSenderId: "315510447504",
+      appId: "1:315510447504:web:1a06af89b9a3a9b1e72715",
+      measurementId: "G-0MBNDLS8NH"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const roomRef = ref(db, "room_1");
+
+    // ---------- MODE TAMPILAN (Gelap / Transparan, satu tombol) ----------
+    const modeToggleBtn = document.getElementById("mode-toggle-btn");
+
+    function setDisplayMode(mode) {
+      document.body.classList.remove("mode-dark", "mode-transparent");
+      document.body.classList.add("mode-" + mode);
+      modeToggleBtn.textContent = mode === "dark" ? "Gelap" : "Transparan";
+      modeToggleBtn.classList.toggle("active", mode === "transparent");
+      localStorage.setItem("display_mode", mode);
+    }
+
+    window.toggleDisplayMode = function() {
+      const current = document.body.classList.contains("mode-transparent") ? "transparent" : "dark";
+      setDisplayMode(current === "dark" ? "transparent" : "dark");
+    };
+
+    setDisplayMode(localStorage.getItem("display_mode") || "dark");
+
+    // ---------- FULLSCREEN (lintas-browser, sinkron status tombol) ----------
+    const fullscreenBtn = document.getElementById("fullscreen-btn");
+
+    function getFullscreenElement() {
+      return document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement ||
+        null;
+    }
+
+    window.toggleFullscreen = function() {
+      const target = document.documentElement;
+      if (!getFullscreenElement()) {
+        const request = target.requestFullscreen ||
+          target.webkitRequestFullscreen ||
+          target.mozRequestFullScreen ||
+          target.msRequestFullscreen;
+        if (request) {
+          const result = request.call(target);
+          if (result && typeof result.catch === "function") {
+            result.catch(() => {
+              console.warn("Fullscreen request ditolak oleh browser.");
+            });
+          }
+        } else {
+          console.warn("Fullscreen API tidak didukung di browser ini.");
+        }
+      } else {
+        const exit = document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.mozCancelFullScreen ||
+          document.msExitFullscreen;
+        if (exit) exit.call(document);
+      }
+    };
+
+    ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((evt) => {
+      document.addEventListener(evt, () => {
+        const isFullscreen = !!getFullscreenElement();
+        fullscreenBtn.classList.toggle("active", isFullscreen);
+        document.body.classList.toggle("is-fullscreen", isFullscreen);
+      });
+    });
+
+    let achievements = JSON.parse(localStorage.getItem("cyber_achievements") || "{}");
+
+    window.unlockAchievement = function(id, titleName) {
+      if (!achievements[id]) {
+        achievements[id] = true;
+        localStorage.setItem("cyber_achievements", JSON.stringify(achievements));
+
+        document.getElementById("toast-title-name").textContent = titleName;
+        const toast = document.getElementById("achievement-toast");
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 4000);
+      }
+    };
+
+    window.openAchievementModal = function() {
+      const listEl = document.getElementById("achievement-list");
+      listEl.innerHTML = `
+        <div style="padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid ${achievements['encryption'] ? 'var(--luxury-gold)' : '#444'};">
+          <b style="color: ${achievements['encryption'] ? 'var(--luxury-gold)' : '#aaa'}">Master of Encryption</b><br>
+          <span style="font-size:10.5px; color:rgba(255,255,255,0.6);">${achievements['encryption'] ? 'Terbuka: Memahami pentingnya enkripsi data & patching.' : 'Belum terbuka (Selesaikan Minigame Terminal)'}</span>
+        </div>
+        <div style="padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid ${achievements['phishing'] ? 'var(--luxury-gold)' : '#444'};">
+          <b style="color: ${achievements['phishing'] ? 'var(--luxury-gold)' : '#aaa'}">Phishing Slayer</b><br>
+          <span style="font-size:10.5px; color:rgba(255,255,255,0.6);">${achievements['phishing'] ? 'Terbuka: Berhasil mengidentifikasi jebakan penipuan online.' : 'Belum terbuka (Selesaikan Skenario Dilema Darurat)'}</span>
+        </div>
+        <div style="padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid ${achievements['race_champion'] ? 'var(--luxury-gold)' : '#444'};">
+          <b style="color: ${achievements['race_champion'] ? 'var(--luxury-gold)' : '#aaa'}">Speed Duelist</b><br>
+          <span style="font-size:10.5px; color:rgba(255,255,255,0.6);">${achievements['race_champion'] ? 'Terbuka: Memenangkan duel Adu Cepat melawan Hacker/Admin.' : 'Belum terbuka (Menangkan Arena Adu Cepat)'}</span>
+        </div>
+      `;
+      document.getElementById("achievement-modal").style.display = "flex";
+    };
+
+    window.closeAchievementModal = function() {
+      document.getElementById("achievement-modal").style.display = "none";
+    };
+
+    const startCameraBtn = document.getElementById("btn-start-camera");
+    const sceneEl = document.querySelector("a-scene");
+
+    startCameraBtn.addEventListener("click", () => {
+      const mindarSystem = sceneEl.systems["mindar-image-system"];
+      if (mindarSystem) {
+        mindarSystem.start();
+        startCameraBtn.style.display = "none";
+        const guide = document.getElementById("scanner-guide");
+        if (guide) guide.style.display = "flex";
+      }
+
+      setTimeout(() => {
+        document.getElementById("dilemma-modal").style.display = "flex";
+      }, 3000);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get("role");
+
+    const btnHacker = document.getElementById("btn-hacker");
+    const btnAdmin  = document.getElementById("btn-admin");
+    const noRoleMsg = document.getElementById("no-role-msg");
+    const roleBadge = document.getElementById("role-badge");
+
+    if (role === "hacker") {
+      btnHacker.style.display = "block";
+      roleBadge.textContent = "PERAN: HACKER (Red Team)";
+      roleBadge.classList.add("role-hacker");
+    } else if (role === "admin") {
+      btnAdmin.style.display = "block";
+      roleBadge.textContent = "PERAN: ADMIN (Blue Team)";
+      roleBadge.classList.add("role-admin");
+    } else {
+      noRoleMsg.style.display = "block";
+      roleBadge.textContent = "MODE PENONTON";
+    }
+
+    // Minigame Logic
+    window.triggerHackerMinigame = function() {
+      const modal = document.getElementById("minigame-modal");
+      const themeBox = document.getElementById("minigame-theme-box");
+      themeBox.className = "modal-content hacker-theme";
+      document.getElementById("mg-title").textContent = "Terminal: Decryption Attack";
+      document.getElementById("mg-desc").textContent = "Pilih kode dekripsi payload malware yang tepat untuk menembus firewall!";
+
+      document.getElementById("mg-target-code").textContent = "8492";
+
+      const optionsEl = document.getElementById("mg-options");
+      optionsEl.innerHTML = `
+        <button class="modal-btn" onclick="resolveHackerMinigame(false)">[X01] Kode: 1024 (Invalid Signature)</button>
+        <button class="modal-btn" onclick="resolveHackerMinigame(true)">[EXPLOIT] Kode: 8492 (Valid Exploit Vector)</button>
+        <button class="modal-btn" onclick="resolveHackerMinigame(false)">[ERR] Kode: 5591 (Corrupted Memory)</button>
+      `;
+      modal.style.display = "flex";
+    };
+
+    window.resolveHackerMinigame = function(success) {
+      document.getElementById("minigame-modal").style.display = "none";
+      if (success) {
+        unlockEncryptionAchievement();
+        update(roomRef, { attack_active: true, server_health: 20 });
+        claimRaceVictory('hacker');
+      } else {
+        alert("Gagal meretas! Kode sandi salah.");
+      }
+    };
+
+    window.triggerAdminMinigame = function() {
+      const modal = document.getElementById("minigame-modal");
+      const themeBox = document.getElementById("minigame-theme-box");
+      themeBox.className = "modal-content";
+      document.getElementById("mg-title").textContent = "Terminal: Patching Sequence";
+      document.getElementById("mg-desc").textContent = "Urutkan protokol pertahanan keamanan jaringan untuk mengisolasi ancaman!";
+
+      document.getElementById("mg-target-code").textContent = "PATCH-FIX";
+
+      const optionsEl = document.getElementById("mg-options");
+      optionsEl.innerHTML = `
+        <button class="modal-btn" onclick="resolveAdminMinigame(true)">1. Blokir IP Asing → Isolasi Sektor → Flush Cache</button>
+        <button class="modal-btn" onclick="resolveAdminMinigame(false)">2. Matikan Total Server Tanpa Backup Data</button>
+      `;
+      modal.style.display = "flex";
+    };
+
+    window.resolveAdminMinigame = function(success) {
+      document.getElementById("minigame-modal").style.display = "none";
+      if (success) {
+        unlockEncryptionAchievement();
+        update(roomRef, { attack_active: false, server_health: 100 });
+        claimRaceVictory('admin');
+      } else {
+        alert("Urutan salah! Sistem gagal melakukan pemulihan darurat.");
+      }
+    };
+
+    function unlockEncryptionAchievement() {
+      unlockAchievement('encryption', 'Master of Encryption');
+    }
+
+    window.handleDilemmaChoice = function(isCorrect) {
+      document.getElementById("dilemma-modal").style.display = "none";
+      if (isCorrect) {
+        unlockAchievement('phishing', 'Phishing Slayer');
+        alert("Analisis Tepat! Selalu verifikasi ekstensi file & laporkan social engineering.");
+      } else {
+        alert("Peringatan Risiko! Membuka file sembarangan memicu eksfiltrasi ransomware.");
+      }
+    };
+
+    // Firebase Sync & HUD
+    const serverObject = document.querySelector("#server-object");
+    const healthText   = document.querySelector("#health-text");
+    const statusBanner = document.getElementById("status-banner");
+    const intelPanel   = document.getElementById("cyber-intel-panel");
+    const intelStatusTag = document.getElementById("intel-status-tag");
+    const intelTitle   = document.getElementById("intel-title");
+    const intelDesc    = document.getElementById("intel-desc");
+
+    let previousAttackState = false;
+    let blinkInterval = null;
+
+    function stopBlink() {
+      if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
+    }
+
+    onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const attackActive = !!data.attack_active;
+      const health = typeof data.server_health === "number" ? data.server_health : 100;
+
+      healthText.setAttribute("value", `Server Health: ${health}`);
+
+      if (attackActive) {
+        statusBanner.textContent = "RAID BOSS ALERT: MALWARE ATTACK ACTIVE!";
+        statusBanner.className = "status-danger";
+
+        intelPanel.classList.add("alert-mode");
+        intelStatusTag.textContent = "CRITICAL THREAT";
+        intelTitle.textContent = "Serangan Malware Tingkat Tinggi";
+        intelDesc.textContent = "Raid Boss menginfeksi integritas data. Gunakan minigame patching admin untuk mengisolasi jaringan.";
+
+        stopBlink();
+        let isRed = true;
+        blinkInterval = setInterval(() => {
+          serverObject.setAttribute("material", "color", isRed ? "#ff2a5f" : "#60001a");
+          isRed = !isRed;
+        }, 400);
+
+      } else {
+        stopBlink();
+
+        if (previousAttackState === true) {
+          statusBanner.textContent = "Firewall Aktif — Pemulihan Berhasil";
+          statusBanner.className = "status-recover";
+          serverObject.setAttribute("material", "color", "#00f3ff");
+
+          intelPanel.classList.remove("alert-mode");
+          intelStatusTag.textContent = "SECURE";
+          intelTitle.textContent = "Infrastruktur Pulih";
+          intelDesc.textContent = "Ancaman berhasil ditanggulangi melalui protokol incident response yang terstruktur.";
+
+          setTimeout(() => {
+            statusBanner.textContent = "Server Aman";
+            statusBanner.className = "status-safe";
+            serverObject.setAttribute("material", "color", "#00ff88");
+          }, 2500);
+
+        } else {
+          statusBanner.textContent = "Server Aman";
+          statusBanner.className = "status-safe";
+          serverObject.setAttribute("material", "color", "#00ff88");
+
+          intelPanel.classList.remove("alert-mode");
+          intelStatusTag.textContent = "SECURE";
+          intelTitle.textContent = "Infrastruktur Terlindungi";
+          intelDesc.textContent = "Sistem berjalan normal. Tingkatkan terus wawasan literasi digital & keamanan siber Anda.";
+        }
+      }
+
+      previousAttackState = attackActive;
+    });
+
+    // ---------- ARENA ADU CEPAT (RACE MODE: HACKER vs ADMIN) ----------
+    const raceRef        = ref(db, "room_1/race");
+    const racePanel       = document.getElementById("race-panel");
+    const raceStatusText  = document.getElementById("race-status-text");
+    const btnStartRace    = document.getElementById("btn-start-race");
+
+    let raceTickInterval     = null;
+    let currentRaceData      = null;
+    let lastShownResultKey   = null;
+
+    function formatSeconds(ms) {
+      if (typeof ms !== "number") return "--.--";
+      return (ms / 1000).toFixed(2);
+    }
+
+    function stopRaceTick() {
+      if (raceTickInterval) { clearInterval(raceTickInterval); raceTickInterval = null; }
+    }
+
+    // Memulai / mengulang ronde adu cepat — bisa ditekan oleh Hacker maupun Admin
+    window.startRace = function() {
+      document.getElementById("race-result-modal").style.display = "none";
+      const nextRound = (currentRaceData && currentRaceData.round ? currentRaceData.round : 0) + 1;
+      update(raceRef, {
+        status: "active",
+        startedAt: Date.now(),
+        hackerTime: null,
+        adminTime: null,
+        winner: null,
+        round: nextRound
+      });
+    };
+
+    window.closeRaceResultModal = function() {
+      document.getElementById("race-result-modal").style.display = "none";
+    };
+
+    // Mencatat waktu penyelesaian & mengklaim kemenangan secara atomik (siapa cepat & tepat, dia menang)
+    async function claimRaceVictory(playerRole) {
+      if (!currentRaceData || currentRaceData.status !== "active") return;
+      const elapsed = Date.now() - currentRaceData.startedAt;
+      const winnerRef = ref(db, "room_1/race/winner");
+
+      try {
+        const result = await runTransaction(winnerRef, (current) => {
+          if (current === null || current === undefined) {
+            return playerRole; // slot juara masih kosong, klaim sekarang
+          }
+          return; // sudah ada pemenang lain, batalkan transaksi ini
+        });
+
+        const updates = {};
+        updates["room_1/race/" + playerRole + "Time"] = elapsed;
+        if (result.committed) {
+          updates["room_1/race/status"] = "finished";
+        }
+        await update(ref(db), updates);
+      } catch (e) {
+        console.error("Gagal mencatat hasil Adu Cepat:", e);
+      }
+    }
+
+    function showRaceResult(raceData, isWinner) {
+      const box   = document.getElementById("race-result-box");
+      const title = document.getElementById("race-result-title");
+      const desc  = document.getElementById("race-result-desc");
+      const timeEl = document.getElementById("race-result-time");
+
+      box.className = "modal-content " + (isWinner ? "win-theme" : "lose-theme");
+      title.textContent = isWinner ? "ANDA MENANG!" : "ANDA KALAH!";
+      desc.textContent = isWinner
+        ? "Anda menyelesaikan misi lebih cepat & lebih tepat dibanding lawan. Pertahankan literasi siber Anda!"
+        : "Lawan Anda lebih gesit & tepat kali ini. Pelajari kembali prosedurnya, lalu coba lagi!";
+
+      const myTime = role === "hacker" ? raceData.hackerTime : raceData.adminTime;
+      timeEl.textContent = formatSeconds(myTime) + "s";
+
+      if (isWinner) {
+        unlockAchievement('race_champion', 'Speed Duelist');
+      }
+
+      document.getElementById("race-result-modal").style.display = "flex";
+    }
+
+    onValue(raceRef, (snapshot) => {
+      const raceData = snapshot.val() || { status: "idle" };
+      currentRaceData = raceData;
+
+      racePanel.classList.remove("race-active", "race-finished");
+      raceStatusText.classList.remove("race-status-live", "race-status-win", "race-status-lose");
+      stopRaceTick();
+
+      if (raceData.status === "active") {
+        // Sembunyikan seluruh panel selama duel berlangsung agar tidak mengganggu fokus minigame
+        racePanel.style.display = "none";
+
+      } else if (raceData.status === "finished" && raceData.winner) {
+        racePanel.style.display = "";
+        racePanel.classList.add("race-finished");
+        btnStartRace.textContent = "Mulai Ulang Duel";
+        btnStartRace.disabled = false;
+
+        const winnerLabel = raceData.winner === "hacker" ? "HACKER" : "ADMIN";
+        raceStatusText.textContent = `Duel selesai! Pemenang: ${winnerLabel}`;
+
+        if (role === "hacker" || role === "admin") {
+          raceStatusText.classList.add(raceData.winner === role ? "race-status-win" : "race-status-lose");
+
+          const resultKey = raceData.round + "-" + raceData.winner;
+          if (lastShownResultKey !== resultKey) {
+            lastShownResultKey = resultKey;
+            showRaceResult(raceData, raceData.winner === role);
+          }
+        }
+
+      } else {
+        racePanel.style.display = "";
+        btnStartRace.textContent = "Mulai Adu Cepat";
+        btnStartRace.disabled = false;
+        raceStatusText.textContent = "Tantang lawan Anda! Tekan tombol untuk memulai duel taktis adu cepat & adu ketepatan.";
+      }
+    });
+  </script>
 </body>
 </html>
