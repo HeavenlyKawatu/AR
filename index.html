@@ -5,15 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Cyber Defense AR — Literasi Digital &amp; Keamanan Siber</title>
 
-  <!--
-    ================================================================
-    LIBRARY (via CDN)
-    Versi A-Frame 1.5.0 + MindAR 1.2.5 dipilih dengan sengaja karena
-    kombinasi ini teruji stabil bersama-sama. Jangan asal upgrade ke
-    versi A-Frame terbaru: MindAR seringkali tertinggal dan bisa
-    langsung error / marker tidak terdeteksi jika versi tidak cocok.
-    ================================================================
-  -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
@@ -34,7 +25,7 @@
       padding: 0;
       height: 100%;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #000;
+      background: transparent;
       overflow: hidden;
     }
 
@@ -44,15 +35,50 @@
       z-index: 0;
     }
 
-    /* ---------- Kontainer overlay UI di atas kamera AR ---------- */
+    /* Memastikan kanvas A-Frame transparan secara total */
+    canvas.a-canvas {
+      background: transparent !important;
+    }
+
+    /* Menghilangkan latar belakang hitam pada elemen video MindAR jika ada */
+    video {
+      object-fit: cover !important;
+    }
+
     #ui-overlay {
       position: fixed;
       inset: 0;
       z-index: 10;
-      pointer-events: none; /* biar area kosong tidak menghalangi kamera */
+      pointer-events: none;
     }
 
-    /* ---------- Badge peran (pojok kiri atas) ---------- */
+    /* ---------- Bingkai Panduan Scanning Kustom ---------- */
+    #scanner-guide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 240px;
+      height: 240px;
+      border: 2px dashed rgba(255, 255, 255, 0.6);
+      border-radius: 16px;
+      display: none; /* Muncul saat kamera aktif */
+      pointer-events: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.8);
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.15);
+      animation: scan-pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes scan-pulse {
+      0%, 100% { border-color: rgba(255, 255, 255, 0.4); }
+      50% { border-color: var(--admin-accent); }
+    }
+
     #role-badge {
       position: absolute;
       top: max(14px, env(safe-area-inset-top));
@@ -69,7 +95,6 @@
     #role-badge.role-hacker { border-left-color: var(--hacker-accent); color: var(--hacker-accent); }
     #role-badge.role-admin  { border-left-color: var(--admin-accent);  color: var(--admin-accent); }
 
-    /* ---------- Banner status server (atas, full width) ---------- */
     #status-banner {
       position: absolute;
       top: max(14px, env(safe-area-inset-top));
@@ -97,7 +122,6 @@
       50% { opacity: 0.55; }
     }
 
-    /* ---------- Baris debug kecil (opsional, untuk demo ke dosen) ---------- */
     #debug-strip {
       position: absolute;
       top: 56px;
@@ -110,7 +134,6 @@
       pointer-events: none;
     }
 
-    /* ---------- Tombol aksi (bawah) ---------- */
     .action-btn {
       position: absolute;
       left: 16px;
@@ -137,7 +160,25 @@
       box-shadow: 0 0 0 1px rgba(0,0,0,0.4) inset;
     }
 
-    /* ---------- Pesan saat parameter ?role= tidak ada ---------- */
+    #btn-start-camera {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 99;
+      padding: 16px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      font-family: system-ui, sans-serif;
+      background: #2ecc71;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
     #no-role-msg {
       position: absolute;
       left: 16px;
@@ -160,13 +201,15 @@
 </head>
 <body>
 
-  <!-- ============================================================
-       UI OVERLAY — murni HTML/CSS di atas kanvas kamera AR
-       ============================================================ -->
   <div id="ui-overlay">
     <div id="role-badge">Memuat peran...</div>
     <div id="status-banner" class="status-safe">🟢 Server Aman</div>
     <div id="debug-strip">DB: attack_active=? | server_health=?</div>
+
+    <!-- Kotak Panduan Pemindai Kustom -->
+    <div id="scanner-guide">Arahkan kamera ke Target Marker</div>
+
+    <button id="btn-start-camera">📸 Ketuk untuk Mulai Kamera AR</button>
 
     <button id="btn-hacker" class="action-btn btn-hacker" style="display:none;">
       🦠 Luncurkan Malware
@@ -182,13 +225,10 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       A-FRAME + MINDAR — Scene AR dengan Image Tracking
-       ============================================================ -->
   <a-scene
-    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no; uiLoading: yes;"
     color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
+    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
   >
@@ -196,10 +236,7 @@
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- targetIndex: 0 artinya marker PERTAMA di dalam file targets.mind -->
     <a-entity mindar-image-target="targetIndex: 0">
-
-      <!-- Objek 3D "Server Data" -->
       <a-cylinder
         id="server-object"
         position="0 0.2 0"
@@ -208,7 +245,6 @@
         material="shader: standard; color: #2ecc71; metalness: 0.25; roughness: 0.45"
       ></a-cylinder>
 
-      <!-- Teks status kesehatan server, mengambang di atas objek -->
       <a-text
         id="health-text"
         value="Server Health: 100"
@@ -217,17 +253,10 @@
         width="1.6"
         color="#ffffff"
       ></a-text>
-
     </a-entity>
   </a-scene>
 
-  <!-- ============================================================
-       LOGIKA APLIKASI (Firebase + Role + Sinkronisasi Warna)
-       ============================================================ -->
   <script type="module">
-    // ------------------------------------------------------------
-    // 1) FIREBASE SDK 9 (MODULAR) — diimpor langsung dari CDN
-    // ------------------------------------------------------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
       getDatabase,
@@ -236,34 +265,36 @@
       update
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-    // ┌──────────────────────────────────────────────────────────┐
-    // │  🔧 GANTI BAGIAN INI DENGAN CONFIG FIREBASE MILIK ANDA   │
-    // │  Cara ambil: Firebase Console → ⚙️ Project settings →    │
-    // │  General → scroll ke "Your apps" → SDK setup and         │
-    // │  configuration → pilih "Config"                          │
-    // └──────────────────────────────────────────────────────────┘
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDMZj3Tzbv-he66Obz876r78v40Xwgt8_A",
-  authDomain: "cyberdefense-ar.firebaseapp.com",
-  databaseURL: "https://cyberdefense-ar-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "cyberdefense-ar",
-  storageBucket: "cyberdefense-ar.firebasestorage.app",
-  messagingSenderId: "315510447504",
-  appId: "1:315510447504:web:1a06af89b9a3a9b1e72715",
-  measurementId: "G-0MBNDLS8NH"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDMZj3Tzbv-he66Obz876r78v40Xwgt8_A",
+      authDomain: "cyberdefense-ar.firebaseapp.com",
+      databaseURL: "https://cyberdefense-ar-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cyberdefense-ar",
+      storageBucket: "cyberdefense-ar.firebasestorage.app",
+      messagingSenderId: "315510447504",
+      appId: "1:315510447504:web:1a06af89b9a3a9b1e72715",
+      measurementId: "G-0MBNDLS8NH"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const roomRef = ref(db, "room_1"); // root data pertandingan
+    const roomRef = ref(db, "room_1");
 
-    // ------------------------------------------------------------
-    // 2) DETEKSI ROLE DARI URL (?role=hacker / ?role=admin)
-    // ------------------------------------------------------------
+    const startCameraBtn = document.getElementById("btn-start-camera");
+    const scannerGuide = document.getElementById("scanner-guide");
+    const sceneEl = document.querySelector("a-scene");
+
+    startCameraBtn.addEventListener("click", () => {
+      const mindarSystem = sceneEl.systems["mindar-image-system"];
+      if (mindarSystem) {
+        mindarSystem.start();
+        startCameraBtn.style.display = "none";
+        scannerGuide.style.display = "flex"; // Tampilkan bingkai scanning kustom
+      }
+    });
+
     const params = new URLSearchParams(window.location.search);
-    const role = params.get("role"); // null | "hacker" | "admin"
+    const role = params.get("role");
 
     const btnHacker   = document.getElementById("btn-hacker");
     const btnAdmin    = document.getElementById("btn-admin");
@@ -285,11 +316,7 @@ const firebaseConfig = {
       roleBadge.textContent = "👁️ MODE PENONTON";
     }
 
-    // ------------------------------------------------------------
-    // 3) AKSI TOMBOL → TULIS (WRITE) KE FIREBASE
-    // ------------------------------------------------------------
     btnHacker.addEventListener("click", () => {
-      // Hacker menyerang: aktifkan status serangan & turunkan kesehatan server
       update(roomRef, {
         attack_active: true,
         server_health: 30
@@ -297,22 +324,16 @@ const firebaseConfig = {
     });
 
     btnAdmin.addEventListener("click", () => {
-      // Admin bertahan: matikan status serangan & pulihkan kesehatan server
       update(roomRef, {
         attack_active: false,
         server_health: 100
       });
     });
 
-    // ------------------------------------------------------------
-    // 4) DENGARKAN PERUBAHAN DATA SECARA REAL-TIME (READ / onValue)
-    //    Bagian ini yang membuat objek 3D di kedua HP berubah warna
-    //    secara bersamaan, walau tombol hanya ditekan di satu HP.
-    // ------------------------------------------------------------
     const serverObject = document.querySelector("#server-object");
     const healthText   = document.querySelector("#health-text");
 
-    let previousAttackState = false; // dipakai utk mendeteksi transisi "baru selesai bertahan"
+    let previousAttackState = false;
     let blinkInterval = null;
 
     function stopBlink() {
@@ -328,7 +349,7 @@ const firebaseConfig = {
 
     onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
-      if (!data) return; // node "room_1" belum pernah diisi sama sekali
+      if (!data) return;
 
       const attackActive = !!data.attack_active;
       const health = typeof data.server_health === "number" ? data.server_health : 100;
@@ -337,7 +358,6 @@ const firebaseConfig = {
       debugStrip.textContent = `DB: attack_active=${attackActive} | server_health=${health}`;
 
       if (attackActive) {
-        // 🔴 STATE: DISERANG — merah berkedip
         statusBanner.textContent = "🔴 SERVER DISERANG!";
         statusBanner.className = "status-danger";
 
@@ -352,7 +372,6 @@ const firebaseConfig = {
         stopBlink();
 
         if (previousAttackState === true) {
-          // 🔵 STATE TRANSISI: firewall baru saja diaktifkan
           statusBanner.textContent = "🔵 Firewall Aktif — Memulihkan Server...";
           statusBanner.className = "status-recover";
           setServerColor("#2f9bff");
@@ -364,7 +383,6 @@ const firebaseConfig = {
           }, 2500);
 
         } else {
-          // 🟢 STATE: AMAN (baik saat pertama load maupun idle)
           statusBanner.textContent = "🟢 Server Aman";
           statusBanner.className = "status-safe";
           setServerColor("#2ecc71");
