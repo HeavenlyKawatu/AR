@@ -1,0 +1,399 @@
+/* ==========================================================================
+   PENJAGA DUNIA DIGITAL — Design tokens
+   Tema: cerah, ramah, kooperatif (bukan cyberpunk gelap)
+   ========================================================================== */
+:root {
+  --color-primary: #4C9EEB;   /* Biru Awan */
+  --color-primary-dark: #2E7FD1;
+  --color-cta: #FFC94A;       /* Kuning Mentari */
+  --color-cta-dark: #EDA912;
+  --color-success: #4CD787;   /* Hijau Daun */
+  --color-warning: #FF6B5B;   /* Coral Hangat */
+  --color-panel: rgba(23, 35, 59, 0.8); /* Navy Kabut */
+  --color-text: #F7F9FC;
+  --color-text-dim: rgba(247, 249, 252, 0.75);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --shadow-soft: 0 10px 28px rgba(23, 35, 59, 0.28);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0c1526;
+  font-family: 'Nunito', system-ui, sans-serif;
+  color: var(--color-text);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+canvas.a-canvas { background: transparent !important; }
+video { object-fit: cover !important; }
+
+button {
+  font-family: inherit;
+}
+
+/* ==========================================================================
+   ZONA ATAS — chip status kecil, terpusat, ringkas
+   ========================================================================== */
+.status-chip {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--color-panel);
+  backdrop-filter: blur(10px);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  box-shadow: var(--shadow-soft);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  transition: border-color 0.3s ease, background 0.3s ease;
+  pointer-events: none;
+}
+.status-chip.status-safe   { border-color: var(--color-success); }
+.status-chip.status-warn   { border-color: var(--color-warning); animation: chip-breathe 1.6s ease-in-out infinite; }
+.status-chip.status-info   { border-color: var(--color-primary); }
+
+@keyframes chip-breathe {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50%      { transform: translateX(-50%) scale(1.05); }
+}
+
+.mission-badge {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 14px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--color-panel);
+  backdrop-filter: blur(10px);
+  font-weight: 700;
+  font-size: 11.5px;
+  color: var(--color-text-dim);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   ZONA TENGAH — tetap kosong dari panel; hanya guide pemindaian ringan
+   ========================================================================== */
+.scan-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  pointer-events: none;
+}
+.scan-guide-frame {
+  width: 230px;
+  height: 230px;
+  border: 4px dashed rgba(247, 249, 252, 0.55);
+  border-radius: var(--radius-lg);
+  animation: guide-pulse 2.2s ease-in-out infinite;
+}
+@keyframes guide-pulse {
+  0%, 100% { transform: scale(1); border-color: rgba(247,249,252,0.4); }
+  50%      { transform: scale(1.03); border-color: rgba(255,201,74,0.75); }
+}
+.scan-guide-text {
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--color-panel);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.no-role-msg {
+  position: fixed;
+  left: 20px; right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  padding: 18px;
+  text-align: center;
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  border: 2px solid var(--color-cta);
+  font-weight: 700;
+  font-size: 14px;
+  pointer-events: auto;
+}
+.no-role-msg code {
+  background: rgba(255,255,255,0.12);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* ==========================================================================
+   ZONA BAWAH — satu tombol CTA besar + satu ikon info
+   ========================================================================== */
+.zone-bottom {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 18px;
+  pointer-events: none;
+}
+
+.btn-cta {
+  pointer-events: auto;
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 17px 22px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-cta), var(--color-cta-dark));
+  color: #17233B;
+  font-weight: 900;
+  font-size: 16px;
+  box-shadow: 0 10px 24px rgba(255, 201, 74, 0.4);
+  transition: transform 0.15s ease;
+}
+.btn-cta:active { transform: scale(0.96); }
+.btn-cta:disabled { opacity: 0.5; box-shadow: none; }
+
+.btn-info {
+  pointer-events: auto;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-panel);
+  border: 2px solid rgba(255,255,255,0.16);
+  color: var(--color-text);
+  font-size: 20px;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s ease;
+}
+.btn-info:active { transform: scale(0.9); }
+
+/* ==========================================================================
+   LEMBAR (Bottom Sheets) — untuk L2 pilihan aksi & L3 info, muncul dari bawah
+   agar zona tengah tetap bersih ketika tidak dibutuhkan
+   ========================================================================== */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(12, 21, 38, 0.55);
+  backdrop-filter: blur(4px);
+}
+.sheet-overlay.open { display: flex; animation: overlay-in 0.25s ease; }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet-card {
+  width: 100%;
+  max-width: 480px;
+  background: linear-gradient(180deg, #1D2C4A, #17233B);
+  border-radius: 28px 28px 0 0;
+  padding: 14px 22px max(22px, env(safe-area-inset-bottom));
+  text-align: center;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.4);
+  animation: sheet-up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.sheet-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+  margin: 4px auto 14px;
+}
+
+.sheet-icon { font-size: 34px; margin-bottom: 6px; }
+
+.sheet-title {
+  font-size: 18px;
+  font-weight: 900;
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+.sheet-sub {
+  font-size: 13.5px;
+  color: var(--color-text-dim);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.sheet-text {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--color-text-dim);
+  margin: 0 0 18px;
+}
+
+.sheet-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.opt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 14.5px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.opt-btn:active { transform: scale(0.97); }
+.opt-btn.opt-good {
+  background: linear-gradient(135deg, var(--color-success), #33b56e);
+  color: #0F2A1E;
+}
+.opt-btn.opt-risky {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.18);
+  color: var(--color-text);
+}
+
+.btn-sheet-close {
+  margin-top: 8px;
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.1);
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* Rangkai Kunci Ajaib — gembok berwarna */
+.lock-targets {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.lock-slot {
+  width: 46px; height: 46px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255,255,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.lock-slot.filled { border-style: solid; }
+
+.lock-options {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+.lock-btn {
+  width: 58px; height: 58px;
+  border-radius: 16px;
+  border: none;
+  font-size: 26px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  transition: transform 0.15s ease;
+}
+.lock-btn:active { transform: scale(0.9); }
+
+/* ==========================================================================
+   TOAST LENCANA — muncul singkat di zona atas, tidak mengganggu
+   ========================================================================== */
+.badge-toast {
+  position: fixed;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  min-width: 220px;
+  text-align: center;
+  padding: 14px 22px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #FFC94A, #EDA912);
+  color: #17233B;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+  transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+}
+.badge-toast.show { top: max(70px, calc(env(safe-area-inset-top) + 56px)); }
+.badge-toast-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+#badge-toast-name { font-size: 15px; font-weight: 900; }
+
+/* Papan peringkat */
+.leaderboard-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  text-align: left;
+}
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.06);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.leaderboard-row .lb-time { color: var(--color-cta); }
+
+/* Aksesibilitas: fokus keyboard terlihat & motion berkurang bila diminta */
+button:focus-visible {
+  outline: 3px solid var(--color-cta);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+@media (max-width: 360px) {
+  .btn-cta { font-size: 14.5px; padding: 15px 16px; }
+  .sheet-title { font-size: 16.5px; }
+}
