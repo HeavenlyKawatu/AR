@@ -1,633 +1,378 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Game - Keamanan Siber</title>
-    
-    <!-- ============================================ -->
-    <!-- 1. LIBRARY CDN - A-Frame, MindAR, Firebase -->
-    <!-- ============================================ -->
-    
-    <!-- A-Frame untuk 3D -->
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    
-    <!-- MindAR untuk Image Tracking -->
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.11/dist/mindar-image-aframe.prod.js"></script>
-    
-    <!-- Firebase SDK 9 (Modular) -->
-    <script type="module">
-        // Import akan dilakukan di script type="module" utama di bawah
-    </script>
-    
-    <!-- ============================================ -->
-    <!-- 2. STYLING & UI OVERLAY -->
-    <!-- ============================================ -->
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Cyber Defense AR — Literasi Digital &amp; Keamanan Siber</title>
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-            background: #000;
-        }
+  <!--
+    ================================================================
+    LIBRARY (via CDN)
+    Versi A-Frame 1.5.0 + MindAR 1.2.5 dipilih dengan sengaja karena
+    kombinasi ini teruji stabil bersama-sama. Jangan asal upgrade ke
+    versi A-Frame terbaru: MindAR seringkali tertinggal dan bisa
+    langsung error / marker tidak terdeteksi jika versi tidak cocok.
+    ================================================================
+  -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-        /* Kontainer A-Frame */
-        a-scene {
-            width: 100%;
-            height: 100%;
-        }
+  <style>
+    :root {
+      --safe: #2ecc71;
+      --danger: #ff3b3b;
+      --recover: #2f9bff;
+      --hacker-accent: #39ff14;
+      --admin-accent: #29d3ff;
+      --panel-bg: rgba(8, 10, 12, 0.72);
+    }
 
-        /* ========== OVERLAY UI ========== */
-        .ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
+    * { box-sizing: border-box; }
 
-        /* Info di atas (title, status) */
-        .info-bar {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            pointer-events: auto;
-            min-width: 200px;
-        }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #000;
+      overflow: hidden;
+    }
 
-        .info-bar h2 {
-            font-size: 18px;
-            margin-bottom: 8px;
-        }
+    a-scene {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
 
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background: #666;
-        }
+    /* ---------- Kontainer overlay UI di atas kamera AR ---------- */
+    #ui-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none; /* biar area kosong tidak menghalangi kamera */
+    }
 
-        .status-indicator.safe {
-            background: #4CAF50; /* Hijau */
-        }
+    /* ---------- Badge peran (pojok kiri atas) ---------- */
+    #role-badge {
+      position: absolute;
+      top: max(14px, env(safe-area-inset-top));
+      left: 14px;
+      padding: 6px 12px;
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      color: #fff;
+      background: var(--panel-bg);
+      border-left: 4px solid #888;
+      pointer-events: auto;
+    }
+    #role-badge.role-hacker { border-left-color: var(--hacker-accent); color: var(--hacker-accent); }
+    #role-badge.role-admin  { border-left-color: var(--admin-accent);  color: var(--admin-accent); }
 
-        .status-indicator.attacking {
-            background: #f44336; /* Merah */
-        }
+    /* ---------- Banner status server (atas, full width) ---------- */
+    #status-banner {
+      position: absolute;
+      top: max(14px, env(safe-area-inset-top));
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      width: fit-content;
+      max-width: 90%;
+      padding: 8px 18px;
+      text-align: center;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--panel-bg);
+      border-bottom: 3px solid var(--safe);
+      transition: border-color 0.3s ease;
+    }
+    #status-banner.status-danger { border-bottom-color: var(--danger); animation: pulse 0.9s ease-in-out infinite; }
+    #status-banner.status-recover { border-bottom-color: var(--recover); }
+    #status-banner.status-safe { border-bottom-color: var(--safe); }
 
-        .status-indicator.firewall-active {
-            background: #2196F3; /* Biru */
-        }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
 
-        /* Tombol Control */
-        .control-panel {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 90%;
-        }
+    /* ---------- Baris debug kecil (opsional, untuk demo ke dosen) ---------- */
+    #debug-strip {
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      pointer-events: none;
+    }
 
-        .btn {
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: bold;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            min-width: 150px;
-        }
+    /* ---------- Tombol aksi (bawah) ---------- */
+    .action-btn {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      padding: 16px 12px;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: system-ui, sans-serif;
+      color: #061012;
+      border: none;
+      border-radius: 8px;
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn:active { transform: scale(0.98); }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+    .btn-hacker {
+      background: var(--hacker-accent);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.4) inset;
+    }
+    .btn-admin {
+      background: var(--admin-accent);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.4) inset;
+    }
 
-        /* Tombol Hacker */
-        .btn-hacker {
-            background: linear-gradient(135deg, #f44336, #e91e63);
-            color: white;
-        }
-
-        .btn-hacker:hover:not(:disabled) {
-            background: linear-gradient(135deg, #d32f2f, #c2185b);
-            transform: scale(1.05);
-            box-shadow: 0 8px 16px rgba(244, 67, 54, 0.4);
-        }
-
-        .btn-hacker:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        /* Tombol Admin */
-        .btn-admin {
-            background: linear-gradient(135deg, #2196F3, #1976D2);
-            color: white;
-        }
-
-        .btn-admin:hover:not(:disabled) {
-            background: linear-gradient(135deg, #1976D2, #0d47a1);
-            transform: scale(1.05);
-            box-shadow: 0 8px 16px rgba(33, 150, 243, 0.4);
-        }
-
-        .btn-admin:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        /* Warning Alert */
-        .warning-alert {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(244, 67, 54, 0.95);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            pointer-events: auto;
-            display: none;
-            z-index: 200;
-            animation: pulse 0.5s infinite alternate;
-        }
-
-        .warning-alert.show {
-            display: block;
-        }
-
-        .warning-alert h3 {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        @keyframes pulse {
-            from {
-                transform: translate(-50%, -50%) scale(1);
-            }
-            to {
-                transform: translate(-50%, -50%) scale(1.05);
-            }
-        }
-
-        /* Animasi blinking untuk server yang diserang */
-        @keyframes blink {
-            0%, 49% {
-                opacity: 1;
-            }
-            50%, 100% {
-                opacity: 0.4;
-            }
-        }
-
-        .server-attacked {
-            animation: blink 0.5s infinite;
-        }
-
-        /* Status message */
-        .message-box {
-            position: absolute;
-            top: 150px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 12px 16px;
-            border-radius: 6px;
-            font-size: 12px;
-            max-width: 200px;
-            pointer-events: auto;
-            border-left: 4px solid #4CAF50;
-        }
-
-        .message-box.error {
-            border-left-color: #f44336;
-        }
-
-        .message-box.warning {
-            border-left-color: #ff9800;
-        }
-
-        /* Role badge */
-        .role-badge {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            pointer-events: auto;
-        }
-
-        /* Tutup tombol */
-        .hidden-role {
-            display: none;
-        }
-    </style>
+    /* ---------- Pesan saat parameter ?role= tidak ada ---------- */
+    #no-role-msg {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #fff;
+      background: var(--panel-bg);
+      border-left: 4px solid #999;
+      pointer-events: auto;
+    }
+    #no-role-msg code {
+      background: rgba(255,255,255,0.12);
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+  </style>
 </head>
 <body>
-    <!-- ============================================ -->
-    <!-- 3. A-FRAME SCENE -->
-    <!-- ============================================ -->
-    <a-scene
-        mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/npm/mind-ar@1.2.11/dist/image-targets/targets.mind;"
-        color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false">
 
-        <!-- Kamera (otomatis ditambahkan oleh MindAR) -->
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <!-- ============================================================
+       UI OVERLAY — murni HTML/CSS di atas kanvas kamera AR
+       ============================================================ -->
+  <div id="ui-overlay">
+    <div id="role-badge">Memuat peran...</div>
+    <div id="status-banner" class="status-safe">🟢 Server Aman</div>
+    <div id="debug-strip">DB: attack_active=? | server_health=?</div>
 
-        <!-- Target Image (anchor untuk marker) -->
-        <a-entity mindar-image-target="targetIndex: 0">
-            
-            <!-- SERVER 3D OBJECT -->
-            <!-- Box merepresentasikan Server Data -->
-            <a-box
-                id="server-box"
-                position="0 0 -0.5"
-                scale="0.3 0.5 0.3"
-                rotation="0 45 0"
-                material="color: #4CAF50; emissive: #2d5a2d;"
-                animation__rotate="property: rotation; to: 0 405 0; dur: 3000; loop: true;">
-            </a-box>
+    <button id="btn-hacker" class="action-btn btn-hacker" style="display:none;">
+      🦠 Luncurkan Malware
+    </button>
 
-            <!-- Cylinder sebagai alternatif (opsional) -->
-            <!-- Uncomment jika ingin menggunakan cylinder instead of box
-            <a-cylinder
-                id="server-cylinder"
-                position="0 0 -0.5"
-                radius="0.15"
-                height="0.4"
-                material="color: #4CAF50; emissive: #2d5a2d;">
-            </a-cylinder>
-            -->
+    <button id="btn-admin" class="action-btn btn-admin" style="display:none;">
+      🛡️ Aktifkan Firewall
+    </button>
 
-            <!-- Teks label (opsional) -->
-            <a-entity text="value: Server Data; color: #fff; align: center; width: 4; baseline: bottom"
-                      position="0 0.4 -0.5">
-            </a-entity>
-
-        </a-entity>
-
-    </a-scene>
-
-    <!-- ============================================ -->
-    <!-- 4. UI OVERLAY HTML -->
-    <!-- ============================================ -->
-    <div class="ui-overlay">
-        <!-- Info Bar (top-left) -->
-        <div class="info-bar">
-            <h2>🔐 Server Status</h2>
-            <p>
-                <span class="status-indicator safe" id="status-dot"></span>
-                <span id="status-text">Aman</span>
-            </p>
-            <p id="health-text" style="margin-top: 8px; font-size: 12px;">Health: 100/100</p>
-        </div>
-
-        <!-- Role Badge (top-right) -->
-        <div class="role-badge" id="role-badge">
-            Role: Loading...
-        </div>
-
-        <!-- Message Box (untuk pesan error/warning) -->
-        <div class="message-box" id="message-box" style="display: none;">
-            <span id="message-text"></span>
-        </div>
-
-        <!-- Warning Alert (center) -->
-        <div class="warning-alert" id="warning-alert">
-            <h3>⚠️ SERANGAN AKTIF!</h3>
-            <p>Server sedang diserang oleh hacker!</p>
-        </div>
-
-        <!-- Control Panel (bottom) -->
-        <div class="control-panel">
-            <!-- Tombol untuk Role Hacker -->
-            <button class="btn btn-hacker hidden-role" id="btn-launch-malware" data-role="hacker">
-                🚀 Luncurkan Malware
-            </button>
-
-            <!-- Tombol untuk Role Admin -->
-            <button class="btn btn-admin hidden-role" id="btn-activate-firewall" data-role="admin">
-                🛡️ Aktifkan Firewall
-            </button>
-        </div>
+    <div id="no-role-msg" style="display:none;">
+      Peran belum ditentukan. Tambahkan <code>?role=hacker</code> atau
+      <code>?role=admin</code> di akhir URL untuk mulai bermain.
     </div>
+  </div>
 
-    <!-- ============================================ -->
-    <!-- 5. JAVASCRIPT MAIN (type="module") -->
-    <!-- ============================================ -->
-    <script type="module">
-        // ===============================================
-        // FIREBASE CONFIGURATION
-        // ===============================================
-        // ⚠️ PENTING: Ganti nilai-nilai di bawah dengan config Firebase Anda sendiri
-        // Dapatkan config dari Firebase Console > Project Settings > Your apps > Web app
-        
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+  <!-- ============================================================
+       A-FRAME + MINDAR — Scene AR dengan Image Tracking
+       ============================================================ -->
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
+    <a-assets></a-assets>
 
-          const firebaseConfig = {
-    apiKey: "AIzaSyAQkAhgWW5gFqb_oE2tAKeNvradn0w8lJg",
-    authDomain: "webar-cybersecurity-game.firebaseapp.com",
-    databaseURL: "https://webar-cybersecurity-game-default-rtdb.firebaseio.com",
-    projectId: "webar-cybersecurity-game",
-    storageBucket: "webar-cybersecurity-game.firebasestorage.app",
-    messagingSenderId: "810379762581",
-    appId: "1:810379762581:web:e01d3100d8411b732bb49c",
-    measurementId: "G-8DNGM0KMSL"
-  };
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        // Inisialisasi Firebase
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+    <!-- targetIndex: 0 artinya marker PERTAMA di dalam file targets.mind -->
+    <a-entity mindar-image-target="targetIndex: 0">
 
-        // ===============================================
-        // GLOBAL VARIABLES
-        // ===============================================
-        let currentRole = null;
-        let currentRoomId = "room_1"; // Bisa dinamis dari URL param jika diperlukan
-        let gameState = {
-            attack_active: false,
-            server_health: 100,
-            firewall_active: false
-        };
+      <!-- Objek 3D "Server Data" -->
+      <a-cylinder
+        id="server-object"
+        position="0 0.2 0"
+        radius="0.25"
+        height="0.4"
+        material="shader: standard; color: #2ecc71; metalness: 0.25; roughness: 0.45"
+      ></a-cylinder>
 
-        // ===============================================
-        // 1. FUNGSI: DETEKSI ROLE DARI URL PARAMETER
-        // ===============================================
-        function detectRoleFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const role = urlParams.get('role');
+      <!-- Teks status kesehatan server, mengambang di atas objek -->
+      <a-text
+        id="health-text"
+        value="Server Health: 100"
+        align="center"
+        position="0 0.62 0"
+        width="1.6"
+        color="#ffffff"
+      ></a-text>
 
-            if (role === 'hacker' || role === 'admin') {
-                currentRole = role;
-                console.log(`✓ Role terdeteksi: ${role}`);
-                return role;
-            }
+    </a-entity>
+  </a-scene>
 
-            console.warn("⚠️ Role tidak terdeteksi. Gunakan ?role=hacker atau ?role=admin");
-            return null;
-        }
+  <!-- ============================================================
+       LOGIKA APLIKASI (Firebase + Role + Sinkronisasi Warna)
+       ============================================================ -->
+  <script type="module">
+    // ------------------------------------------------------------
+    // 1) FIREBASE SDK 9 (MODULAR) — diimpor langsung dari CDN
+    // ------------------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      onValue,
+      update
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-        // ===============================================
-        // 2. FUNGSI: INISIALISASI UI BERDASARKAN ROLE
-        // ===============================================
-        function initializeUI(role) {
-            const roleBadge = document.getElementById('role-badge');
-            const btnHacker = document.getElementById('btn-launch-malware');
-            const btnAdmin = document.getElementById('btn-activate-firewall');
+    // ┌──────────────────────────────────────────────────────────┐
+    // │  🔧 GANTI BAGIAN INI DENGAN CONFIG FIREBASE MILIK ANDA   │
+    // │  Cara ambil: Firebase Console → ⚙️ Project settings →    │
+    // │  General → scroll ke "Your apps" → SDK setup and         │
+    // │  configuration → pilih "Config"                          │
+    // └──────────────────────────────────────────────────────────┘
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDMZj3Tzbv-he66Obz876r78v40Xwgt8_A",
+  authDomain: "cyberdefense-ar.firebaseapp.com",
+  databaseURL: "https://cyberdefense-ar-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "cyberdefense-ar",
+  storageBucket: "cyberdefense-ar.firebasestorage.app",
+  messagingSenderId: "315510447504",
+  appId: "1:315510447504:web:1a06af89b9a3a9b1e72715",
+  measurementId: "G-0MBNDLS8NH"
+};
 
-            if (role === 'hacker') {
-                roleBadge.textContent = '🔴 HACKER';
-                roleBadge.style.borderColor = '#f44336';
-                btnHacker.classList.remove('hidden-role');
-            } else if (role === 'admin') {
-                roleBadge.textContent = '🔵 ADMIN';
-                roleBadge.style.borderColor = '#2196F3';
-                btnAdmin.classList.remove('hidden-role');
-            }
-        }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const roomRef = ref(db, "room_1"); // root data pertandingan
 
-        // ===============================================
-        // 3. FUNGSI: INISIALISASI FIREBASE DATA
-        // ===============================================
-        async function initializeFirebaseData() {
-            try {
-                const roomRef = ref(database, `${currentRoomId}`);
-                
-                // Cek apakah room sudah ada
-                onValue(roomRef, (snapshot) => {
-                    if (!snapshot.exists()) {
-                        // Jika tidak ada, buat struktur baru
-                        set(roomRef, {
-                            attack_active: false,
-                            server_health: 100,
-                            firewall_active: false,
-                            last_updated: new Date().toISOString()
-                        });
-                        console.log("✓ Database room_1 diinisialisasi");
-                    }
-                }, (error) => {
-                    console.error("Error saat read database:", error);
-                    showMessage("Error menghubungkan ke database", "error");
-                });
+    // ------------------------------------------------------------
+    // 2) DETEKSI ROLE DARI URL (?role=hacker / ?role=admin)
+    // ------------------------------------------------------------
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get("role"); // null | "hacker" | "admin"
 
-            } catch (error) {
-                console.error("Error inisialisasi data:", error);
-                showMessage("Gagal menginisialisasi database", "error");
-            }
-        }
+    const btnHacker   = document.getElementById("btn-hacker");
+    const btnAdmin    = document.getElementById("btn-admin");
+    const noRoleMsg   = document.getElementById("no-role-msg");
+    const roleBadge   = document.getElementById("role-badge");
+    const statusBanner = document.getElementById("status-banner");
+    const debugStrip  = document.getElementById("debug-strip");
 
-        // ===============================================
-        // 4. FUNGSI: UPDATE WARNA SERVER BERDASARKAN STATUS
-        // ===============================================
-        function updateServerVisuals(state) {
-            const serverBox = document.getElementById('server-box');
-            const statusDot = document.getElementById('status-dot');
-            const statusText = document.getElementById('status-text');
-            const warningAlert = document.getElementById('warning-alert');
-            const healthText = document.getElementById('health-text');
+    if (role === "hacker") {
+      btnHacker.style.display = "block";
+      roleBadge.textContent = "🦠 PERAN: HACKER";
+      roleBadge.classList.add("role-hacker");
+    } else if (role === "admin") {
+      btnAdmin.style.display = "block";
+      roleBadge.textContent = "🛡️ PERAN: ADMIN";
+      roleBadge.classList.add("role-admin");
+    } else {
+      noRoleMsg.style.display = "block";
+      roleBadge.textContent = "👁️ MODE PENONTON";
+    }
 
-            // Update health text
-            healthText.textContent = `Health: ${state.server_health}/100`;
+    // ------------------------------------------------------------
+    // 3) AKSI TOMBOL → TULIS (WRITE) KE FIREBASE
+    // ------------------------------------------------------------
+    btnHacker.addEventListener("click", () => {
+      // Hacker menyerang: aktifkan status serangan & turunkan kesehatan server
+      update(roomRef, {
+        attack_active: true,
+        server_health: 30
+      });
+    });
 
-            // Logika perubahan warna dan status
-            if (state.attack_active && !state.firewall_active) {
-                // Server sedang diserang (Merah + Blinking)
-                serverBox.setAttribute('material', 'color: #f44336; emissive: #c62828;');
-                serverBox.classList.add('server-attacked');
-                statusDot.className = 'status-indicator attacking';
-                statusText.textContent = '⚠️ DISERANG!';
-                warningAlert.classList.add('show');
-            } else if (state.firewall_active || !state.attack_active) {
-                // Server aman (Hijau) atau Firewall aktif (Biru)
-                serverBox.classList.remove('server-attacked');
-                warningAlert.classList.remove('show');
+    btnAdmin.addEventListener("click", () => {
+      // Admin bertahan: matikan status serangan & pulihkan kesehatan server
+      update(roomRef, {
+        attack_active: false,
+        server_health: 100
+      });
+    });
 
-                if (state.firewall_active) {
-                    serverBox.setAttribute('material', 'color: #2196F3; emissive: #0d47a1;');
-                    statusDot.className = 'status-indicator firewall-active';
-                    statusText.textContent = '🔒 Firewall Aktif';
-                } else {
-                    serverBox.setAttribute('material', 'color: #4CAF50; emissive: #2d5a2d;');
-                    statusDot.className = 'status-indicator safe';
-                    statusText.textContent = '✓ Aman';
-                }
-            }
-        }
+    // ------------------------------------------------------------
+    // 4) DENGARKAN PERUBAHAN DATA SECARA REAL-TIME (READ / onValue)
+    //    Bagian ini yang membuat objek 3D di kedua HP berubah warna
+    //    secara bersamaan, walau tombol hanya ditekan di satu HP.
+    // ------------------------------------------------------------
+    const serverObject = document.querySelector("#server-object");
+    const healthText   = document.querySelector("#health-text");
 
-        // ===============================================
-        // 5. FUNGSI: SETUP REAL-TIME LISTENER
-        // ===============================================
-        function setupRealtimeListener() {
-            const roomRef = ref(database, currentRoomId);
+    let previousAttackState = false; // dipakai utk mendeteksi transisi "baru selesai bertahan"
+    let blinkInterval = null;
 
-            // Listen untuk perubahan data di Firebase secara real-time
-            onValue(roomRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    gameState = {
-                        attack_active: data.attack_active || false,
-                        server_health: data.server_health || 100,
-                        firewall_active: data.firewall_active || false
-                    };
+    function stopBlink() {
+      if (blinkInterval) {
+        clearInterval(blinkInterval);
+        blinkInterval = null;
+      }
+    }
 
-                    console.log("📡 State dari Firebase:", gameState);
+    function setServerColor(hex) {
+      serverObject.setAttribute("material", "color", hex);
+    }
 
-                    // Update visuals berdasarkan state terbaru
-                    updateServerVisuals(gameState);
-                } else {
-                    console.log("Database kosong, inisialisasi...");
-                    initializeFirebaseData();
-                }
-            }, (error) => {
-                console.error("Error listening to database:", error);
-                showMessage("Kehilangan koneksi ke database", "error");
-            });
-        }
+    onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return; // node "room_1" belum pernah diisi sama sekali
 
-        // ===============================================
-        // 6. FUNGSI: HACKER LUNCURKAN MALWARE
-        // ===============================================
-        async function launchMalware() {
-            try {
-                const attackRef = ref(database, `${currentRoomId}/attack_active`);
-                await set(attackRef, true);
-                showMessage("Malware diluncurkan!", "warning");
-                console.log("✓ Attack_active diubah ke true");
-            } catch (error) {
-                console.error("Error launching malware:", error);
-                showMessage("Gagal meluncurkan malware", "error");
-            }
-        }
+      const attackActive = !!data.attack_active;
+      const health = typeof data.server_health === "number" ? data.server_health : 100;
 
-        // ===============================================
-        // 7. FUNGSI: ADMIN AKTIFKAN FIREWALL
-        // ===============================================
-        async function activateFirewall() {
-            try {
-                const updates = {};
-                updates[`${currentRoomId}/attack_active`] = false;
-                updates[`${currentRoomId}/firewall_active`] = true;
+      healthText.setAttribute("value", `Server Health: ${health}`);
+      debugStrip.textContent = `DB: attack_active=${attackActive} | server_health=${health}`;
 
-                await update(ref(database), updates);
-                showMessage("Firewall diaktifkan! Server aman.", "success");
-                console.log("✓ Firewall diaktifkan, attack_active diubah ke false");
+      if (attackActive) {
+        // 🔴 STATE: DISERANG — merah berkedip
+        statusBanner.textContent = "🔴 SERVER DISERANG!";
+        statusBanner.className = "status-danger";
 
-                // Reset firewall setelah 3 detik (opsional)
-                setTimeout(() => {
-                    const firewallRef = ref(database, `${currentRoomId}/firewall_active`);
-                    set(firewallRef, false);
-                }, 3000);
-            } catch (error) {
-                console.error("Error activating firewall:", error);
-                showMessage("Gagal mengaktifkan firewall", "error");
-            }
-        }
+        stopBlink();
+        let isRed = true;
+        blinkInterval = setInterval(() => {
+          setServerColor(isRed ? "#ff2b2b" : "#7a0000");
+          isRed = !isRed;
+        }, 400);
 
-        // ===============================================
-        // 8. FUNGSI: TAMPILKAN MESSAGE
-        // ===============================================
-        function showMessage(text, type = 'info') {
-            const messageBox = document.getElementById('message-box');
-            const messageText = document.getElementById('message-text');
+      } else {
+        stopBlink();
 
-            messageBox.className = `message-box ${type}`;
-            messageText.textContent = text;
-            messageBox.style.display = 'block';
+        if (previousAttackState === true) {
+          // 🔵 STATE TRANSISI: firewall baru saja diaktifkan
+          statusBanner.textContent = "🔵 Firewall Aktif — Memulihkan Server...";
+          statusBanner.className = "status-recover";
+          setServerColor("#2f9bff");
 
-            // Hilangkan pesan setelah 3 detik
-            setTimeout(() => {
-                messageBox.style.display = 'none';
-            }, 3000);
-        }
+          setTimeout(() => {
+            statusBanner.textContent = "🟢 Server Aman";
+            statusBanner.className = "status-safe";
+            setServerColor("#2ecc71");
+          }, 2500);
 
-        // ===============================================
-        // 9. EVENT LISTENERS UNTUK TOMBOL
-        // ===============================================
-        document.getElementById('btn-launch-malware').addEventListener('click', launchMalware);
-        document.getElementById('btn-activate-firewall').addEventListener('click', activateFirewall);
-
-        // ===============================================
-        // 10. INITIALIZATION SEQUENCE
-        // ===============================================
-        async function init() {
-            console.log("🚀 Menginisialisasi aplikasi...");
-
-            // Step 1: Deteksi role
-            const role = detectRoleFromURL();
-            if (!role) {
-                showMessage("Role tidak terdeteksi. Gunakan URL: ?role=hacker atau ?role=admin", "error");
-                return;
-            }
-
-            // Step 2: Setup UI
-            initializeUI(role);
-
-            // Step 3: Setup Firebase
-            await initializeFirebaseData();
-
-            // Step 4: Setup listener real-time
-            setupRealtimeListener();
-
-            console.log("✅ Aplikasi siap!");
-        }
-
-        // Jalankan inisialisasi saat halaman sudah siap
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
         } else {
-            init();
+          // 🟢 STATE: AMAN (baik saat pertama load maupun idle)
+          statusBanner.textContent = "🟢 Server Aman";
+          statusBanner.className = "status-safe";
+          setServerColor("#2ecc71");
         }
+      }
 
-        // ===============================================
-        // DEBUGGING (Optional - hapus di production)
-        // ===============================================
-        window.gameDebug = {
-            gameState,
-            launchMalware,
-            activateFirewall,
-            currentRole,
-            updateServerVisuals
-        };
-        console.log("💡 Untuk debugging, gunakan window.gameDebug di console");
-
-    </script>
-
+      previousAttackState = attackActive;
+    });
+  </script>
 </body>
 </html>
