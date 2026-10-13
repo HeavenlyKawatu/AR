@@ -1,10 +1,3 @@
-// ============================================================================
-// PENJAGA DUNIA DIGITAL — script.js
-// Logika 4 misi literasi digital (ISTE Standards for Students / Common Sense
-// Media k-12 digital citizenship curriculum), gamifikasi lencana, dan
-// pencatatan waktu penyelesaian ke "Papan Peringkat Penjaga" via Firebase.
-// ============================================================================
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
   getDatabase, ref, push, set, query, orderByChild, limitToLast, onValue
@@ -25,9 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const leaderboardRef = ref(db, "papan_peringkat_penjaga");
 
-// ----------------------------------------------------------------------------
-// Identitas pemain: nama Penjaga singkat, disimpan lokal (tanpa data pribadi)
-// ----------------------------------------------------------------------------
+
 function getGuardianName() {
   let name = localStorage.getItem("guardian_name");
   if (!name) {
@@ -40,11 +31,7 @@ function getGuardianName() {
 }
 const guardianName = getGuardianName();
 
-// ----------------------------------------------------------------------------
-// Kurikulum 4 misi — microcopy berlapis L1 (tap) / L2 (aksi) / L3 (info ℹ️)
-// Setiap misi memetakan ke domain literasi digital ISTE/CSM:
-//   1. Jejak Digital  2. Phishing/Scam  3. Kata Sandi Aman  4. Anti-Perundungan
-// ----------------------------------------------------------------------------
+
 const MISSIONS = [
   {
     id: "jejak",
@@ -53,8 +40,8 @@ const MISSIONS = [
     l1: "Ada jejak digital tertinggal!",
     type: "choice",
     options: [
-      { id: "good", label: "🧹 Bersihkan Jejak", correct: true },
-      { id: "bad", label: "🙈 Biarkan", correct: false }
+      { id: "good", label: " Bersihkan Jejak", correct: true },
+      { id: "bad", label: "Biarkan", correct: false }
     ],
     feedbackGood: "Mantap! Kamu menjaga jejak digitalmu tetap rapi.",
     feedbackBad: "Hati-hati! Jejak yang dibiarkan bisa terlihat lama, lho.",
@@ -80,7 +67,7 @@ const MISSIONS = [
     hotspotIcon: "🔑",
     l1: "Kunci rapat brankas datamu!",
     type: "lock",
-    // Urutan warna yang benar untuk merangkai kunci (disamarkan, bukan sandi asli)
+
     correctOrder: ["biru", "kuning", "hijau"],
     lockColors: [
       { id: "biru", icon: "🔵" },
@@ -159,15 +146,14 @@ function updateMissionBadge() {
 }
 
 // ----------------------------------------------------------------------------
-// Alur kamera & mulai misi pertama (Zona Bawah — tombol CTA tunggal)
+// kamera
 // ----------------------------------------------------------------------------
 function handleCtaTap() {
   if (!cameraStarted) {
     startCamera();
     return;
   }
-  // Jika kamera sudah aktif, CTA berperan sebagai "ketuk hotspot" (mode uji/aksesibilitas
-  // tanpa marker fisik) sekaligus jalur utama membuka misi berikutnya.
+
   openCurrentMissionSheet();
 }
 
@@ -184,7 +170,6 @@ function startCamera() {
   updateMissionBadge();
 }
 
-// Saat target AR terdeteksi, sembunyikan panduan pemindaian dan aktifkan hotspot
 function onTargetFound() {
   el.scanGuide.style.display = "none";
   setStatusChip("safe", "🛡️", "Sistem Aman");
@@ -224,9 +209,7 @@ function openCurrentMissionSheet() {
   }
 }
 
-// ----------------------------------------------------------------------------
-// L1 + L2 — Lembar pilihan aksi (misi bertipe "choice")
-// ----------------------------------------------------------------------------
+
 function openActionSheet(mission) {
   el.actionSheetIcon.textContent = mission.hotspotIcon;
   el.actionSheetL1.textContent = mission.l1;
@@ -243,9 +226,7 @@ function openActionSheet(mission) {
   el.actionSheet.classList.add("open");
 }
 
-// ----------------------------------------------------------------------------
-// Misi 3 — Rangkai Kunci Ajaib (urutan 3 gembok warna)
-// ----------------------------------------------------------------------------
+
 function openLockSheet(mission) {
   lockProgress = [];
   renderLockTargets(mission);
@@ -288,9 +269,7 @@ function renderLockTargets(mission) {
   });
 }
 
-// ----------------------------------------------------------------------------
-// Resolusi misi: umpan balik singkat + lencana + catat waktu ke leaderboard
-// ----------------------------------------------------------------------------
+
 function resolveMission(mission, success) {
   el.actionSheet.classList.remove("open");
   el.lockSheet.classList.remove("open");
@@ -323,9 +302,7 @@ function showAllMissionsComplete() {
   setStatusChip("safe", "🏅", "Semua Misi Selesai!");
 }
 
-// ----------------------------------------------------------------------------
-// Lembar info (L3) — dipakai baik untuk ikon ℹ️ maupun umpan balik hasil misi
-// ----------------------------------------------------------------------------
+
 function openInfoText(text, icon) {
   el.infoSheetIcon.textContent = icon || "💡";
   el.infoSheetText.textContent = text;
@@ -342,9 +319,7 @@ function closeInfoSheet(evt) {
   el.infoSheet.classList.remove("open");
 }
 
-// ----------------------------------------------------------------------------
-// Toast lencana (gamifikasi ringan, muncul di Zona Atas)
-// ----------------------------------------------------------------------------
+
 function showBadgeToast(name) {
   el.badgeToastName.textContent = name;
   el.badgeToast.classList.add("show");
@@ -352,7 +327,7 @@ function showBadgeToast(name) {
 }
 
 // ----------------------------------------------------------------------------
-// Firebase — Papan Peringkat Penjaga (waktu penyelesaian per misi)
+// Firebase
 // ----------------------------------------------------------------------------
 function logMissionTime(missionId, elapsedMs) {
   const entryRef = push(leaderboardRef);
@@ -388,9 +363,7 @@ function closeLeaderboard() {
   el.leaderboardSheet.classList.remove("open");
 }
 
-// ----------------------------------------------------------------------------
-// Cek parameter peran/karakter (opsional, mempertahankan mode multi-pemain)
-// ----------------------------------------------------------------------------
+
 const params = new URLSearchParams(window.location.search);
 const peran = params.get("peran");
 if (!peran) {
@@ -398,9 +371,6 @@ if (!peran) {
   el.noRoleMsg.style.display = "none";
 }
 
-// ----------------------------------------------------------------------------
-// Ekspor fungsi yang dipakai langsung dari atribut onclick di index.html
-// ----------------------------------------------------------------------------
 window.PenjagaApp = {
   handleCtaTap,
   openInfoSheet,
